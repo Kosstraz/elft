@@ -44,5 +44,6 @@ int	elft_read_shstrtab(t_elf* elft)
 	
 	elft_get_raw(elft)->shstrtab = shf->f->data;
 	elft_get_raw(elft)->shstrtab_size = shf->f->size;
+	elft_free_sfinder(shf);
 	return (elft->err);
 }

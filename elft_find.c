@@ -134,13 +134,16 @@ t_elf_symfinder*	elft_find_sym_by_name(t_elf* elft, const char* symname)
 	if (symf->shf)
 	{
 		symf->sym = (t_elf_symbol*)symf->shf->f->data;
-		for (unsigned long i = 0 ; i < symf->shf->f->size / sizeof(t_elf_symbol) ; ++i)
+		unsigned long i = 0;
+		//printf("size : %d\n", symf->shf->f->size / sizeof(t_elf_symbol));
+		for ( ; i < symf->shf->f->size / sizeof(t_elf_symbol) ; ++i)
 		{
-			t_elf_symbol*	tmp = (t_elf_symbol*)(&symf->shf->f->data[i]);
+			t_elf_symbol*	tmp = (&((t_elf_symbol*)symf->shf->f->data)[i]);
 			if (!strcmp(symname, (char*)(strtab->f->data + tmp->name_offset))) // compare with strtab
-				return (elft->err = ELFT_SUCCESS, (symf->sym = (t_elf_symbol*)(&symf->shf->f->data[i])), symf);
+				return (elft_free_sfinder(strtab), elft->err = ELFT_SUCCESS, (symf->sym = (t_elf_symbol*)(&symf->shf->f->data[i])), symf);
 		}
 	}
+	elft_free_sfinder(strtab);
 	elft->err = ELFT_SYMBOL_NOT_FOUND;
 	return (NULL);
 }
