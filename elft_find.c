@@ -1,5 +1,7 @@
 #include "elft.h"
 
+static int	next_sym_count = 0;
+
 t_elf_shfinder*	elft_find_shstrtab_header(t_elf* elft)
 {
 	if (elft->sHeaders == NULL)
@@ -12,6 +14,7 @@ t_elf_shfinder*	elft_find_shstrtab_header(t_elf* elft)
 	shf->f = malloc(sizeof(t_elf_finder));
 	if (!shf->f)
 		return (elft->err = ELFT_MALLOC_FAILED,
+				elft_free_shfinder(shf),
 				NULL);
 	shf->header = elft->sHeaders[elft->header->sections_names_index];
 	shf->f->data = elft_get_raw(elft)->data + shf->header->offset;
@@ -32,6 +35,7 @@ t_elf_shfinder*	elft_find_sectionH_by_name(t_elf* elft, const char* sname)
 	shf->f = malloc(sizeof(t_elf_finder));
 	if (!shf->f)
 		return (elft->err = ELFT_MALLOC_FAILED,
+				elft_free_shfinder(shf),
 				NULL);
 	unsigned int	i = 0;
 	for ( ; i < elft->header->section_headers_count ; ++i)
@@ -40,7 +44,7 @@ t_elf_shfinder*	elft_find_sectionH_by_name(t_elf* elft, const char* sname)
 			break ;
 	}
 	if (i == elft->header->section_headers_count)
-		return (elft_free_sfinder(shf),
+		return (elft_free_shfinder(shf),
 				elft->err = ELFT_SHEADER_NOT_EXIST,
 				NULL);
 	shf->header = elft->sHeaders[i];
@@ -63,6 +67,7 @@ t_elf_shfinder*	elft_find_sectionH_by_type(t_elf* elft, elftUDouble ELFTSH_type)
 	shf->f = malloc(sizeof(t_elf_finder));
 	if (!shf->f)
 		return (elft->err = ELFT_MALLOC_FAILED,
+				elft_free_shfinder(shf),
 				NULL);
 	unsigned int	i = 0;
 	for ( ; i < elft->header->section_headers_count ; ++i)
@@ -71,7 +76,7 @@ t_elf_shfinder*	elft_find_sectionH_by_type(t_elf* elft, elftUDouble ELFTSH_type)
 			break ;
 	}
 	if (i == elft->header->section_headers_count)
-		return (elft_free_sfinder(shf),
+		return (elft_free_shfinder(shf),
 				elft->err = ELFT_SHEADER_NOT_EXIST,
 				NULL);
 	shf->header = elft->sHeaders[i];
@@ -115,36 +120,67 @@ t_elf_shfinder*	elft_find_sectionH_by_type(t_elf* elft, elftUDouble ELFTSH_type)
 // Return first sym found by its name
 t_elf_symfinder*	elft_find_sym_by_name(t_elf* elft, const char* symname)
 {
-	if (elft->sHeaders == NULL)
-		return (elft->err = ELFT_NEED_TO_READ_SHEADERS,
-				NULL);
+	if (elft->sHeaders == NULL)	return (__elft_ret(elft, ELFT_NEED_TO_READ_SHEADERS));
+
 	t_elf_symfinder*	symf = malloc(sizeof(t_elf_symfinder));
-	if (!symf)
-		return (elft->err = ELFT_MALLOC_FAILED,
-				NULL);
+	if (symf == NULL)	return (__elft_ret(elft, ELFT_MALLOC_FAILED));
+
+	symf->name = NULL;
 	symf->sym = malloc(sizeof(t_elf_symbol));
-	if (!symf->sym)
-		return (elft->err = ELFT_MALLOC_FAILED,
-				NULL);
+	if (symf->sym == NULL)	return (__elft_ret(elft, ELFT_MALLOC_FAILED));
+
 	t_elf_shfinder*	strtab = elft_find_sectionH_by_name(elft, ".strtab");
-	if (!strtab)
-		return (ELFT_SHEADER_NOT_EXIST,
-				NULL);
+	if (strtab == NULL)	return (__elft_ret(elft, ELFT_SHEADER_NOT_EXIST));
+
 	symf->shf = elft_find_sectionH_by_name(elft, ".symtab");
 	if (symf->shf)
 	{
+		symf->name = strdup(symname);
 		symf->sym = (t_elf_symbol*)symf->shf->f->data;
 		unsigned long i = 0;
-		//printf("size : %d\n", symf->shf->f->size / sizeof(t_elf_symbol));
 		for ( ; i < symf->shf->f->size / sizeof(t_elf_symbol) ; ++i)
 		{
 			t_elf_symbol*	tmp = (&((t_elf_symbol*)symf->shf->f->data)[i]);
 			if (!strcmp(symname, (char*)(strtab->f->data + tmp->name_offset))) // compare with strtab
-				return (elft_free_sfinder(strtab), elft->err = ELFT_SUCCESS, (symf->sym = (t_elf_symbol*)(&symf->shf->f->data[i])), symf);
+				return (elft_free_shfinder(strtab), elft->err = ELFT_SUCCESS, (symf->sym = (t_elf_symbol*)(&symf->shf->f->data[i])), symf);
 		}
 	}
-	elft_free_sfinder(strtab);
+	elft_free_shfinder(strtab);
+	elft_free_symfinder(symf);
 	elft->err = ELFT_SYMBOL_NOT_FOUND;
+	return (NULL);
+}
+
+void	elft_find__reset_next_sym_count(void)
+{
+	next_sym_count = 0;
+}
+
+int	elft_find__get_next_sym_count(void)
+{
+	return (next_sym_count);
+}
+
+t_elf_symfinder*	elft_find_next_sym(t_elf* elft)
+{
+	t_elf_symfinder*		sf = malloc(sizeof(t_elf_symfinder));
+	if (sf == NULL)	return (__elft_ret(elft, ELFT_MALLOC_FAILED));
+
+	sf->name = NULL;
+	sf->sym = NULL;
+	t_elf_shfinder*	strtab = elft_find_sectionH_by_name(elft, ".strtab");
+	sf->shf = elft_find_sectionH_by_name(elft, ".symtab");
+	if (sf->shf && sizeof(t_elf_symbol) * next_sym_count < sf->shf->f->size)
+	{
+		sf->sym = &((t_elf_symbol*)sf->shf->f->data)[next_sym_count++];
+		if (strtab)
+			sf->name = strdup(strtab->f->data + sf->sym->name_offset);
+		elft_free_shfinder(strtab);
+		elft->err = ELFT_SUCCESS;
+		return (sf);
+	}
+	elft_free_shfinder(strtab);
+	elft_free_symfinder(sf);
 	return (NULL);
 }
 

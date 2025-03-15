@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   elft.h                                             :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ymanchon <ymanchon@student.42.fr>          +#+  +:+       +#+        */
+/*   By: bama <bama@student.42.fr>                  +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/21 14:05:37 by ymanchon          #+#    #+#             */
-/*   Updated: 2025/03/04 20:31:04 by ymanchon         ###   ########.fr       */
+/*   Updated: 2025/03/15 17:19:19 by bama             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -180,8 +180,8 @@ typedef struct	s_elf_symbol
 
 typedef struct	s_elf_finder
 {
-	char*	data;		// c data
-	int		size;		// data size
+	char*			data;		// c data
+	unsigned long	size;		// data size
 }	t_elf_finder;
 
 typedef struct	s_elf_phfinder
@@ -199,9 +199,15 @@ typedef struct	s_elf_shfinder
 
 typedef struct	s_elf_symfinder
 {
+	char*			name;
 	t_elf_symbol*	sym;
 	t_elf_shfinder*	shf;
 }	t_elf_symfinder;
+
+	// __elft_utils.c
+
+void*	__elft_ret(t_elf* elft, int code);
+int		__elft_iret(t_elf* elft, int code);
 
 	// elft_read.c
 
@@ -216,13 +222,20 @@ int	elft_read_shstrtab(t_elf* elft);
 
 	// elft_find.c
 
+// Reset index used by elft_find_next_sym
+void				elft_find__reset_next_sym_count(void);
+// Get index used by elft_find_next_sym
+int					elft_find__get_next_sym_count(void);
+// Find next sym
+// Return NULL if no rest
+t_elf_symfinder*	elft_find_next_sym(t_elf* elft);
 // NOT need to elft_read_shstrtab() before
-t_elf_shfinder*	elft_find_shstrtab_header(t_elf* elft);
+t_elf_shfinder*		elft_find_shstrtab_header(t_elf* elft);
 // need to elft_read_shstrtab() before
-t_elf_shfinder*	elft_find_sectionH_by_name(t_elf* elft, const char* sname);
+t_elf_shfinder*		elft_find_sectionH_by_name(t_elf* elft, const char* sname);
 // need to elft_read_section_headers() before
 // Return first section header found
-t_elf_shfinder*	elft_find_sectionH_by_type(t_elf* elft, elftUDouble ELFTSH_type);	// faire un systeme de recherche par occurrence (sinon acces au premier trouver)
+t_elf_shfinder*		elft_find_sectionH_by_type(t_elf* elft, elftUDouble ELFTSH_type);	// faire un systeme de recherche par occurrence (sinon acces au premier trouver)
 // need to elft_read_program_headers() before
 // Return first program header found
 //t_elf_phfinder*	elft_find_programH_by_type(t_elf* elft, elftDouble ELFTPH_type);	// faire un systeme de recherche par occurrence (sinon acces au premier trouver)
@@ -239,9 +252,9 @@ void	elft_sym_set_addr(t_elf_symfinder* sym);
 
 	// elft_free.c
 
-void	elft_free_sfinder(t_elf_shfinder* shf);
-void	elft_free_pfinder(t_elf_phfinder* phf);
-void	elft_free_finder(t_elf_symfinder* f);
+void	elft_free_shfinder(t_elf_shfinder* shf);
+void	elft_free_phfinder(t_elf_phfinder* phf);
+void	elft_free_symfinder(t_elf_symfinder* f);
 
 	// elft.c
 

@@ -3,10 +3,10 @@
 #                                                         :::      ::::::::    #
 #    Makefile                                           :+:      :+:    :+:    #
 #                                                     +:+ +:+         +:+      #
-#    By: ymanchon <ymanchon@student.42.fr>          +#+  +:+       +#+         #
+#    By: bama <bama@student.42.fr>                  +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/05/13 16:21:19 by ymanchon          #+#    #+#              #
-#    Updated: 2025/03/04 20:51:57 by ymanchon         ###   ########.fr        #
+#    Updated: 2025/03/15 13:52:48 by bama             ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -36,13 +36,14 @@ AR = @ar -rcs
 
 CC = @cc
 
-LMAKE = @make --no-print-directory -C
+LMAKE = @make $(1) --no-print-directory -C $(2)
 
 SRCS =	./elft.c \
 		./elft_read.c \
 		./elft_sym.c \
 		./elft_find.c \
 		./elft_free.c \
+		./__elft_utils.c \
 
 OBJS_DIR = .objs
 
@@ -58,7 +59,7 @@ INCLUDES = -I.
 #*    REGLES    *#
 # ############## #
 
-all: $(NAME)
+all: check_compilation $(NAME)
 
 $(NAME): $(OBJS)
 	$(AR) $(NAME) -o $(OBJS)
@@ -69,6 +70,14 @@ $(OBJS_DIR)/%.obj: %.c
 	@echo "$(GREEN)🗸 Compilation $(BOLD)$(YELLOW)$<$(CLASSIC)"
 	$(CC) $(INCLUDES) $(CFLAGS) -c $< -o $@
 
+check_compilation:
+	@if [ -f $(NAME) ] && \
+		[ -n "$(strip $(OBJS))" ] && \
+		[ -z "$$(find $(SRCS) -newer $(NAME) 2>/dev/null)" ]; then \
+		echo "$(BOLD)$(PURPLE)Tous les fichiers $(UNDERLINE)$(YELLOW)$(NAME)$(CLASSIC)$(BOLD)$(PURPLE) sont déjà compilés !$(CLASSIC)"; \
+		exit 0; \
+	fi
+
 clean:
 	@echo "$(BOLD)$(RED)"
 	rm $(OBJS_DIR) -rf
@@ -76,11 +85,10 @@ clean:
 
 fclean: clean
 	@echo "$(BOLD)$(RED)"
-	rm $(LIBNAME) -f
 	rm $(NAME) -f
 	@echo "$(BOLD)$(GREEN)Tout a été supprimé... 🗑️\n$(CLASSIC)"
 
-re: fclean all
+re: clean all
 
-.PHONY: all clean fclean re libft_comp
+.PHONY: all clean fclean re
 -include $(DEPS)
